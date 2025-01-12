@@ -1,100 +1,164 @@
-# Welcome to React Router!
+# aiHash - AI-Powered Mining Optimization
 
-A modern, production-ready template for building full-stack React applications using React Router.
+A decentralized AI agent for cryptocurrency mining optimization with real-time analytics, Web3 integration, and futuristic design.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## Setup Instructions
 
-## Features
+### Prerequisites
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-
-## Getting Started
+1. Node.js (v16 or higher)
+2. Sui Wallet Extension
+3. MongoDB (optional, uses in-memory storage for development)
 
 ### Installation
 
-Install the dependencies:
-
+1. Clone the repository:
 ```bash
+git clone [repository-url]
+cd ai-optimizer-conan
+```
+
+2. Install dependencies for both frontend and backend:
+```bash
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+cd server
 npm install
 ```
 
-### Development
+3. Install Sui Wallet:
+- Visit the [Chrome Web Store](https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil)
+- Install the Sui Wallet extension
+- Create a new wallet or import existing one
+- Switch to devnet for testing
 
-Start the development server with HMR:
+### Configuration
 
+1. Create environment files:
 ```bash
+# In the server directory
+cp .env.example .env
+```
+
+2. Start the development servers:
+```bash
+# Start backend server (from server directory)
+npm run dev
+
+# Start frontend server (from root directory)
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+## Connecting Your Mining Rig
 
-## Building for Production
+### Option 1: Using Sample Client
 
-Create a production build:
-
+1. Install dependencies:
 ```bash
-npm run build
+cd server
+npm install ws
 ```
 
-## Deployment
-
-### Docker Deployment
-
-This template includes three Dockerfiles optimized for different package managers:
-
-- `Dockerfile` - for npm
-- `Dockerfile.pnpm` - for pnpm
-- `Dockerfile.bun` - for bun
-
-To build and run using Docker:
-
+2. Run the sample client:
 ```bash
-# For npm
-docker build -t my-app .
-
-# For pnpm
-docker build -f Dockerfile.pnpm -t my-app .
-
-# For bun
-docker build -f Dockerfile.bun -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+node src/examples/rig-client.js
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+### Option 2: Direct Integration
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+Integrate with our WebSocket API:
 
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+1. Connect to WebSocket server:
+```javascript
+const ws = new WebSocket('ws://localhost:5000');
 ```
 
-## Styling
+2. Register your rig:
+```javascript
+ws.send(JSON.stringify({
+  type: 'register',
+  owner: 'your_wallet_address',
+  name: 'rig_name',
+  connectionDetails: {
+    ip: 'your_ip',
+    protocol: 'stratum2'
+  }
+}));
+```
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+3. Send metrics:
+```javascript
+ws.send(JSON.stringify({
+  type: 'metrics',
+  metrics: {
+    gpus: [{
+      model: 'GPU_MODEL',
+      temperature: 65,
+      fanSpeed: 70,
+      hashrate: 95000000,
+      power: 220,
+      memory: 10000,
+      core: 1500
+    }],
+    totalHashrate: 95000000,
+    totalPower: 220
+  }
+}));
+```
 
----
+## Testing
 
-Built with ❤️ using React Router.
+1. Start both frontend and backend servers
+2. Open http://localhost:5175 in your browser
+3. Connect your Sui Wallet
+4. Start the sample mining client
+5. Monitor real-time updates and optimizations
+
+## Features
+
+- Real-time mining analytics
+- AI-driven optimization
+- Hardware monitoring
+- Power consumption optimization
+- Thermal management
+- Web3 integration
+- Decentralized infrastructure
+- Modern, futuristic UI
+
+## Development Mode Features
+
+- In-memory database for quick testing
+- Real-time WebSocket communication
+- Simulated mining metrics
+- Automatic optimization recommendations
+
+## Production Deployment
+
+For production deployment:
+
+1. Update MongoDB connection in server/.env
+2. Configure proper security measures
+3. Set up SSL/TLS for WebSocket connections
+4. Deploy frontend to static hosting
+5. Deploy backend to Node.js hosting
+
+## Security Considerations
+
+1. Always use secure WebSocket connections (WSS) in production
+2. Implement proper wallet signature verification
+3. Rate limit API requests
+4. Monitor for suspicious activities
+5. Keep all dependencies updated
+
+## Support
+
+For support and questions:
+- Create an issue on GitHub
+- Join our Discord community
+- Contact support@aihash.com
+
+## License
+
+MIT License - see LICENSE file for details
