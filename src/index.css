@@ -18,7 +18,7 @@
   }
 
   .neon-button {
-    @apply px-6 py-2 bg-background border border-primary rounded-lg 
+    @apply px-6 py-2 bg-background border border-primary rounded-lg
            text-primary font-semibold shadow-neon transition-all duration-300
            hover:shadow-neon-strong hover:scale-105 hover:bg-primary/10;
   }
@@ -42,7 +42,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-background-dark;
+  @apply bg-background-light;
 }
 
 ::-webkit-scrollbar-thumb {

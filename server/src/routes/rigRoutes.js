@@ -1,11 +1,11 @@
 const express = require('express');
-const MiningRig = require('../models/MiningRig');
 const router = express.Router();
+const MiningRig = require('../models/MiningRig');
 
 // Get all rigs for an owner
-router.get('/owner/:address', async (req, res) => {
+router.get('/owner/:ownerId', async (req, res) => {
   try {
-    const rigs = await MiningRig.find({ owner: req.params.address });
+    const rigs = await MiningRig.find({ owner: req.params.ownerId });
     res.json(rigs);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -17,11 +17,48 @@ router.get('/:id', async (req, res) => {
   try {
     const rig = await MiningRig.findById(req.params.id);
     if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
+      return res.status(404).json({ message: 'Mining rig not found' });
     }
     res.json(rig);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Register a new rig
+router.post('/register', async (req, res) => {
+  try {
+    const { owner, name, connectionDetails } = req.body;
+    const rig = new MiningRig({
+      owner,
+      name,
+      connectionDetails,
+      status: 'offline',
+      hardware: {
+        gpus: [],
+        totalHashrate: 0,
+        totalPower: 0
+      }
+    });
+    await rig.save();
+    res.status(201).json(rig);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Update rig status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const rig = await MiningRig.findById(req.params.id);
+    if (!rig) {
+      return res.status(404).json({ message: 'Mining rig not found' });
+    }
+    await rig.updateStatus(status);
+    res.json(rig);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 
@@ -30,10 +67,9 @@ router.patch('/:id/settings', async (req, res) => {
   try {
     const rig = await MiningRig.findById(req.params.id);
     if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
+      return res.status(404).json({ message: 'Mining rig not found' });
     }
 
-    // Update only allowed settings
     const allowedSettings = ['autoOptimize', 'powerLimit', 'targetTemperature'];
     allowedSettings.forEach(setting => {
       if (req.body[setting] !== undefined) {
@@ -41,21 +77,46 @@ router.patch('/:id/settings', async (req, res) => {
       }
     });
 
+    if (req.body.status) {
+      rig.status = req.body.status;
+    }
+
     await rig.save();
     res.json(rig);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 });
 
-// Get rig performance history
-router.get('/:id/performance', async (req, res) => {
+// Update hardware metrics
+router.patch('/:id/hardware', async (req, res) => {
   try {
     const rig = await MiningRig.findById(req.params.id);
     if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
+      return res.status(404).json({ message: 'Mining rig not found' });
     }
-    res.json(rig.performance);
+
+    const { gpus } = req.body;
+    if (gpus && Array.isArray(gpus)) {
+      rig.hardware.gpus = gpus;
+      rig.lastSeen = Date.now();
+      await rig.save();
+    }
+
+    res.json(rig);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Remove a rig
+router.delete('/:id', async (req, res) => {
+  try {
+    const rig = await MiningRig.findByIdAndDelete(req.params.id);
+    if (!rig) {
+      return res.status(404).json({ message: 'Mining rig not found' });
+    }
+    res.json({ message: 'Mining rig removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -66,7 +127,7 @@ router.get('/:id/alerts', async (req, res) => {
   try {
     const rig = await MiningRig.findById(req.params.id);
     if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
+      return res.status(404).json({ message: 'Mining rig not found' });
     }
     res.json(rig.alerts);
   } catch (error) {
@@ -74,46 +135,26 @@ router.get('/:id/alerts', async (req, res) => {
   }
 });
 
-// Mark alert as resolved
-router.patch('/:id/alerts/:alertId', async (req, res) => {
+// Add alert to rig
+router.post('/:id/alerts', async (req, res) => {
   try {
+    const { type, message, severity } = req.body;
     const rig = await MiningRig.findById(req.params.id);
     if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
+      return res.status(404).json({ message: 'Mining rig not found' });
     }
-
-    const alert = rig.alerts.id(req.params.alertId);
-    if (!alert) {
-      return res.status(404).json({ message: 'Alert not found' });
-    }
-
-    alert.resolved = true;
-    await rig.save();
-    res.json(alert);
+    await rig.addAlert(type, message, severity);
+    res.json(rig.alerts);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 });
 
-// Get rig statistics
-router.get('/:id/stats', async (req, res) => {
+// Get active rigs
+router.get('/status/active', async (req, res) => {
   try {
-    const rig = await MiningRig.findById(req.params.id);
-    if (!rig) {
-      return res.status(404).json({ message: 'Rig not found' });
-    }
-
-    const stats = {
-      totalHashrate: rig.hardware.totalHashrate,
-      totalPower: rig.hardware.totalPower,
-      efficiency: rig.performance.efficiency,
-      gpuCount: rig.hardware.gpus.length,
-      status: rig.status,
-      lastSeen: rig.lastSeen,
-      dailyEarnings: rig.performance.dailyEarnings,
-    };
-
-    res.json(stats);
+    const activeRigs = await MiningRig.findActive();
+    res.json(activeRigs);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

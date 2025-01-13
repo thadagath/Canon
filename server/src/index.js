@@ -1,60 +1,103 @@
-require('dotenv').config();
 const express = require('express');
-const http = require('http');
 const cors = require('cors');
+const WebSocket = require('ws');
+const http = require('http');
 const connectDB = require('./config/db');
-const RigController = require('./controllers/rigController');
 const rigRoutes = require('./routes/rigRoutes');
+
+// Initialize Express
+const app = express();
+console.log('Starting server initialization...');
 
 // Connect to MongoDB
 connectDB();
-
-const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// API Routes
+// Routes
 app.use('/api/rigs', rigRoutes);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize WebSocket server for rig connections
-const rigController = new RigController(server);
+// Create WebSocket server
+const wss = new WebSocket.Server({ server });
 
-// Error handling middleware
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+  console.log('New client connected');
+
+  // Send initial message
+  ws.send(JSON.stringify({
+    type: 'connection',
+    message: 'Connected to AIHash mining server'
+  }));
+
+  // Handle incoming messages
+  ws.on('message', async (message) => {
+    try {
+      const data = JSON.parse(message);
+      
+      // Handle different message types
+      switch (data.type) {
+        case 'hardware_update':
+          // Broadcast hardware updates to all connected clients
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'hardware_update',
+                data: data.data
+              }));
+            }
+          });
+          break;
+
+        case 'status_update':
+          // Broadcast status updates to all connected clients
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'status_update',
+                data: data.data
+              }));
+            }
+          });
+          break;
+
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  });
+
+  // Handle client disconnection
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+// Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  res.status(500).send('Something broke!');
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
+console.log('Attempting to start server on port', PORT, '...');
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket server ready for rig connections`);
+  console.log('WebSocket server ready for rig connections');
 });
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.log('Unhandled Rejection:', err);
+  // Close server & exit process
+  server.close(() => process.exit(1));
 });
