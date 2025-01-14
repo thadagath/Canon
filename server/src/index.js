@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const connectDB = require('./config/db');
 const rigRoutes = require('./routes/rigRoutes');
+const authRoutes = require('./routes/authRoutes');
 const morgan = require('morgan');
 const winston = require('winston');
 
@@ -12,7 +13,7 @@ const app = express();
 console.log('Starting server initialization...');
 
 // Connect to MongoDB
-connectDB();
+//connectDB();
 
 // Configure logging
 app.use(morgan('combined')); // Log HTTP requests
@@ -31,6 +32,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/rigs', rigRoutes);
+app.use('/api/auth', authRoutes);
 
 // Create HTTP server
 const server = http.createServer(app);
