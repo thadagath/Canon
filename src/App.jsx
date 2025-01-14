@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { WalletProvider, ConnectButton, useWallet } from '@suiet/wallet-kit';
 import '@suiet/wallet-kit/style.css';
-import { ChartBarIcon, CubeTransparentIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, CubeTransparentIcon, BoltIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 import Logo from './components/Logo';
 import { useState, useEffect } from 'react';
 import MiningDashboard from './components/MiningDashboard';
@@ -61,7 +61,7 @@ const MainContent = () => {
     if (wallet.connected && !ws) {
       setIsConnecting(true);
       const socket = new WebSocket('ws://localhost:5000');
-      
+
       socket.onopen = () => {
         console.log('Connected to mining server');
         socket.send(JSON.stringify({
@@ -168,7 +168,7 @@ const MainContent = () => {
                 </motion.div>
               </div>
             )}
-            
+
             {(!isConnecting && (rigStatus === 'connected' || rigStatus === 'mining')) || isDevMode ? (
               <MiningDashboard
                 rigData={rigData}
@@ -217,7 +217,7 @@ const MainContent = () => {
 
 const CustomConnectButton = () => {
   const wallet = useWallet();
-  
+
   if (wallet.connected) {
     return (
       <div className="flex items-center space-x-3">
@@ -227,14 +227,14 @@ const CustomConnectButton = () => {
             {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
           </span>
         </div>
-        <ConnectButton 
+        <ConnectButton
           label="Disconnect"
           className="text-sm text-primary/70 hover:text-primary transition-colors"
         />
       </div>
     );
   }
-  
+
   return (
     <ConnectButton className="neon-button">
       Connect Wallet

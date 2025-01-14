@@ -1,237 +1,146 @@
 const WebSocket = require('ws');
+const axios = require('axios');
 
 // Configuration
 const config = {
-  serverUrl: 'ws://localhost:5000',
+  rigId: null,
   owner: '0xa2d2de9f820fce6e5d142723c00d905188c34605fb473260033cf21d356a0486',
-  rigName: 'Test Rig 1',
-  updateInterval: 5000, // 5 seconds
+  name: 'Test Rig 1',
+  wsUrl: 'ws://localhost:5000',
+  apiUrl: 'http://localhost:5000/api'
 };
 
-// GPU Models with their base characteristics
-const GPU_MODELS = [
-  {
-    name: 'NVIDIA RTX 3080',
-    baseHashrate: 95000000, // 95 MH/s
-    basePower: 220, // 220W
-    baseTemp: 65, // 65°C
-  },
-  {
-    name: 'NVIDIA RTX 3090',
-    baseHashrate: 120000000, // 120 MH/s
-    basePower: 290, // 290W
-    baseTemp: 68, // 68°C
-  },
-  {
-    name: 'AMD RX 6800 XT',
-    baseHashrate: 85000000, // 85 MH/s
-    basePower: 200, // 200W
-    baseTemp: 62, // 62°C
-  },
-];
+// Simulated GPU data
+const gpuModels = ['RTX 4090', 'RTX 4080', 'RTX 3090', 'RTX 3080'];
 
-class TestRig {
-  constructor() {
-    this.ws = null;
-    this.isConnected = false;
-    this.isMining = false;
-    this.gpus = this.initializeGPUs();
-  }
+function generateRandomGPU() {
+  const model = gpuModels[Math.floor(Math.random() * gpuModels.length)];
+  const temperature = 50 + Math.random() * 30; // 50-80°C
+  const fanSpeed = 30 + Math.random() * 70; // 30-100%
+  const hashrate = 80 + Math.random() * 40; // 80-120 MH/s
+  const power = 200 + Math.random() * 100; // 200-300W
+  
+  return {
+    model,
+    temperature: Math.round(temperature),
+    fanSpeed: Math.round(fanSpeed),
+    hashrate: Math.round(hashrate * 100) / 100,
+    power: Math.round(power),
+    memory: 1200 + Math.round(Math.random() * 400), // 1200-1600 MHz
+    core: 1500 + Math.round(Math.random() * 500) // 1500-2000 MHz
+  };
+}
 
-  initializeGPUs() {
-    // Create 2-4 random GPUs
-    const gpuCount = 2 + Math.floor(Math.random() * 3);
-    return Array.from({ length: gpuCount }, () => {
-      const model = GPU_MODELS[Math.floor(Math.random() * GPU_MODELS.length)];
-      return {
-        model: model.name,
-        baseHashrate: model.baseHashrate,
-        basePower: model.basePower,
-        baseTemp: model.baseTemp,
-        currentTemp: model.baseTemp,
-        fanSpeed: 60,
-        memory: 0,
-        core: 0,
-      };
-    });
-  }
-
-  connect() {
-    console.log('Connecting to mining server...');
-    this.ws = new WebSocket(config.serverUrl);
-
-    this.ws.on('open', () => {
-      console.log('Connected to server');
-      this.isConnected = true;
-      this.register();
-    });
-
-    this.ws.on('message', (data) => {
-      try {
-        const message = JSON.parse(data);
-        this.handleServerMessage(message);
-      } catch (error) {
-        console.error('Error parsing message:', error);
-      }
-    });
-
-    this.ws.on('close', () => {
-      console.log('Disconnected from server');
-      this.isConnected = false;
-      this.reconnect();
-    });
-
-    this.ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
-  }
-
-  register() {
-    const registration = {
-      type: 'register',
+async function registerRig() {
+  try {
+    const response = await axios.post(`${config.apiUrl}/rigs/register`, {
       owner: config.owner,
-      name: config.rigName,
+      name: config.name,
       connectionDetails: {
         ip: '127.0.0.1',
-        protocol: 'stratum2',
-      },
-    };
-
-    this.send(registration);
-  }
-
-  startMining() {
-    this.isMining = true;
-    this.send({
-      type: 'status',
-      status: 'mining',
+        port: 3333,
+        protocol: 'stratum2'
+      }
     });
-    this.startMetricsReporting();
-  }
-
-  stopMining() {
-    this.isMining = false;
-    this.send({
-      type: 'status',
-      status: 'online',
-    });
-    if (this.metricsInterval) {
-      clearInterval(this.metricsInterval);
-    }
-  }
-
-  startMetricsReporting() {
-    if (this.metricsInterval) {
-      clearInterval(this.metricsInterval);
-    }
-
-    this.metricsInterval = setInterval(() => {
-      const metrics = this.generateMetrics();
-      this.send({
-        type: 'metrics',
-        metrics,
-      });
-    }, config.updateInterval);
-  }
-
-  generateMetrics() {
-    const gpuMetrics = this.gpus.map(gpu => {
-      // Add some random fluctuation
-      const hashrateFactor = 0.95 + Math.random() * 0.1; // ±5%
-      const powerFactor = 0.98 + Math.random() * 0.04; // ±2%
-      const tempChange = -2 + Math.random() * 4; // ±2°C
-
-      // Update current temperature with some inertia
-      gpu.currentTemp = gpu.currentTemp * 0.8 + (gpu.baseTemp + tempChange) * 0.2;
-      
-      // Adjust fan speed based on temperature
-      gpu.fanSpeed = Math.min(100, Math.max(30, 
-        Math.floor(40 + (gpu.currentTemp - 50) * 2)
-      ));
-
-      // Update core and memory clocks with some variation
-      gpu.core = Math.floor(1200 + Math.random() * 300);
-      gpu.memory = Math.floor(9500 + Math.random() * 1000);
-
-      return {
-        model: gpu.model,
-        temperature: Math.round(gpu.currentTemp),
-        fanSpeed: gpu.fanSpeed,
-        hashrate: Math.floor(gpu.baseHashrate * hashrateFactor),
-        power: Math.floor(gpu.basePower * powerFactor),
-        memory: gpu.memory,
-        core: gpu.core,
-      };
-    });
-
-    // Calculate totals
-    const totalHashrate = gpuMetrics.reduce((sum, gpu) => sum + gpu.hashrate, 0);
-    const totalPower = gpuMetrics.reduce((sum, gpu) => sum + gpu.power, 0);
-
-    return {
-      gpus: gpuMetrics,
-      totalHashrate,
-      totalPower,
-    };
-  }
-
-  handleServerMessage(message) {
-    console.log('Received message:', message);
-
-    switch (message.type) {
-      case 'registered':
-        console.log('Registration successful');
-        this.startMining();
-        break;
-
-      case 'optimize':
-        console.log('Applying optimization:', message.recommendations);
-        // Simulate applying optimizations
-        Object.entries(message.recommendations).forEach(([gpuId, recommendation]) => {
-          const index = parseInt(gpuId.replace('gpu', ''));
-          if (this.gpus[index]) {
-            if (recommendation.type === 'temperature') {
-              this.gpus[index].baseTemp *= (1 + recommendation.value / 100);
-            } else if (recommendation.type === 'efficiency') {
-              this.gpus[index].baseHashrate *= 1.05; // 5% improvement
-              this.gpus[index].basePower *= 0.95; // 5% reduction
-            }
-          }
-        });
-        break;
-
-      case 'error':
-        console.error('Server error:', message.message);
-        break;
-    }
-  }
-
-  send(data) {
-    if (this.isConnected) {
-      this.ws.send(JSON.stringify(data));
-    }
-  }
-
-  reconnect() {
-    setTimeout(() => {
-      console.log('Attempting to reconnect...');
-      this.connect();
-    }, 5000);
+    
+    config.rigId = response.data._id;
+    console.log('Rig registered successfully:', config.rigId);
+    return response.data;
+  } catch (error) {
+    console.error('Error registering rig:', error.message);
+    throw error;
   }
 }
 
-// Create and start test rig
-const testRig = new TestRig();
-testRig.connect();
+function connectWebSocket() {
+  const ws = new WebSocket(config.wsUrl);
 
-// Handle process termination
-process.on('SIGINT', () => {
-  console.log('Shutting down test rig...');
-  if (testRig.metricsInterval) {
-    clearInterval(testRig.metricsInterval);
+  ws.on('open', () => {
+    console.log('Connected to WebSocket server');
+    startSendingUpdates(ws);
+  });
+
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data);
+      console.log('Received message:', message);
+    } catch (error) {
+      console.error('Error parsing message:', error);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('Disconnected from server');
+    setTimeout(() => {
+      console.log('Attempting to reconnect...');
+      connectWebSocket();
+    }, 5000);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+
+  return ws;
+}
+
+function startSendingUpdates(ws) {
+  // Generate initial GPU data
+  const numGPUs = 2 + Math.floor(Math.random() * 3); // 2-4 GPUs
+  let gpus = Array(numGPUs).fill(null).map(generateRandomGPU);
+
+  // Send hardware updates every 5 seconds
+  setInterval(async () => {
+    if (!config.rigId) return;
+
+    // Update GPU data with small variations
+    gpus = gpus.map(gpu => ({
+      ...gpu,
+      temperature: Math.max(50, Math.min(80, gpu.temperature + (Math.random() * 2 - 1))),
+      fanSpeed: Math.max(30, Math.min(100, gpu.fanSpeed + (Math.random() * 4 - 2))),
+      hashrate: Math.max(80, Math.min(120, gpu.hashrate + (Math.random() * 2 - 1))),
+      power: Math.max(200, Math.min(300, gpu.power + (Math.random() * 10 - 5)))
+    }));
+
+    const hardwareUpdate = {
+      type: 'hardware_update',
+      data: {
+        rigId: config.rigId,
+        gpus: gpus.map(gpu => ({
+          ...gpu,
+          temperature: Math.round(gpu.temperature),
+          fanSpeed: Math.round(gpu.fanSpeed),
+          hashrate: Math.round(gpu.hashrate * 100) / 100,
+          power: Math.round(gpu.power)
+        }))
+      }
+    };
+
+    // Send update via WebSocket
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(hardwareUpdate));
+    }
+
+    // Update rig data via REST API
+    try {
+      await axios.patch(`${config.apiUrl}/rigs/${config.rigId}/hardware`, {
+        gpus: hardwareUpdate.data.gpus
+      });
+    } catch (error) {
+      console.error('Error updating rig data:', error.message);
+    }
+  }, 5000);
+}
+
+// Start the test rig
+async function startTestRig() {
+  try {
+    await registerRig();
+    connectWebSocket();
+  } catch (error) {
+    console.error('Error starting test rig:', error);
+    process.exit(1);
   }
-  if (testRig.ws) {
-    testRig.ws.close();
-  }
-  process.exit(0);
-});
+}
+
+startTestRig();
