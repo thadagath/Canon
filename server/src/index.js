@@ -4,6 +4,8 @@ const WebSocket = require('ws');
 const http = require('http');
 const connectDB = require('./config/db');
 const rigRoutes = require('./routes/rigRoutes');
+const morgan = require('morgan');
+const winston = require('winston');
 
 // Initialize Express
 const app = express();
@@ -11,6 +13,17 @@ console.log('Starting server initialization...');
 
 // Connect to MongoDB
 connectDB();
+
+// Configure logging
+app.use(morgan('combined')); // Log HTTP requests
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'server.log' }),
+    new winston.transports.Console()
+  ]
+});
 
 // Middleware
 app.use(cors());
@@ -82,7 +95,7 @@ wss.on('connection', (ws) => {
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
   res.status(500).send('Something broke!');
 });
 
@@ -97,7 +110,7 @@ server.listen(PORT, () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  console.log('Unhandled Rejection:', err);
+  logger.error('Unhandled Rejection:', err);
   // Close server & exit process
   server.close(() => process.exit(1));
 });

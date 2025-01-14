@@ -15,10 +15,12 @@
     "@vitejs/plugin-react": "^4.2.1",
     "axios": "^1.6.5",
     "framer-motion": "^10.17.9",
+    "morgan": "^1.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
