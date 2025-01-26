@@ -12,7 +12,7 @@ const LoginPage = () => {
     try {
       const response = await axios.post('/api/auth/login', { username, password });
       localStorage.setItem('token', response.data.token);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       console.error('Login failed:', error);
       alert('Login failed. Please check your credentials.');
@@ -20,7 +20,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-background pt-16"> {/* Added top padding */}
       <div className="glass-panel p-8 rounded-lg max-w-md w-full">
         <h2 className="text-2xl font-bold text-white mb-6">Login</h2>
         <form onSubmit={handleLogin} className="space-y-4">

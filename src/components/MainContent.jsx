@@ -112,7 +112,7 @@ const MainContent = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <div className="pt-24 sm:pt-32">
+      <div className="pt-24 sm:pt-10">
         {true ? (
           <>
             <LandingPage />

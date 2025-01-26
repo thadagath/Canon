@@ -1,7 +1,7 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const mongoose = require('mongoose');
 
-const uri = "mongodb+srv://canon2:IOloman21@canon2.5wly2.mongodb.net/?retryWrites=true&w=majority&appName=Canon2";
+const uri = "mongodb+srv://Thadha2:Thada%40777@cluster0.yavzr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 const connectDB = async () => {
   try {
