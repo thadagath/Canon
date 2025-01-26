@@ -3,12 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    @apply bg-background text-white;
-  }
-
-  body {
-    @apply min-h-screen antialiased;
+  html, body {
+    @apply bg-background text-white min-h-screen m-0 p-0; /* Ensure no margin or padding around the body */
+    overflow-x: hidden; /* Prevent horizontal overflow */
   }
 }
 
@@ -18,7 +15,7 @@
   }
 
   .neon-button {
-    @apply px-6 py-2 bg-background border border-primary rounded-lg
+    @apply px-4 py-1.5 bg-background border border-primary rounded-lg
            text-primary font-semibold shadow-neon transition-all duration-300
            hover:shadow-neon-strong hover:scale-105 hover:bg-primary/10;
   }
@@ -47,4 +44,25 @@
 
 ::-webkit-scrollbar-thumb {
   @apply bg-primary/30 rounded-full hover:bg-primary/50 transition-colors;
+}
+
+/* Table styling */
+.table-auto th, .table-auto td {
+  @apply py-2 px-4;
+}
+
+.table-auto th {
+  @apply text-left font-semibold text-gray-300 uppercase;
+}
+
+.table-auto td {
+  @apply text-gray-400;
+}
+
+.table-auto tbody tr:hover {
+  @apply bg-background-lighter transition-colors;
+}
+
+.table-auto tbody tr {
+  @apply border-b border-gray-700;
 }

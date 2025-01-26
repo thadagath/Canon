@@ -47,6 +47,12 @@ export default {
       backgroundSize: {
         'grid': '20px 20px',
       },
+      padding: {
+        'sm': '0.5rem',
+        'md': '1rem',
+        'lg': '1.5rem',
+        'xl': '2rem',
+      },
     },
   },
   plugins: [],

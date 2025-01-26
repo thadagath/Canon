@@ -1,47 +1,77 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { db } = require('../config/db'); // Assuming you have a db setup
+const User = require('../models/User');
 
-const secret = 'your_jwt_secret'; // Move this to your .env file
-
-// Mock user database
-const users = new Map();
+const secret = process.env.JWT_SECRET || 'your_new_jwt_secret'; // Ensure this matches the .env file
 
 exports.register = async (req, res) => {
   const { username, password } = req.body;
-  if (users.has(username)) {
-    return res.status(400).json({ message: 'User already exists' });
+  try {
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).json({ message: 'User registration failed' });
   }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  users.set(username, { username, password: hashedPassword });
-
-  res.status(201).json({ message: 'User registered successfully' });
 };
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
-  const user = users.get(username);
+  try {
+    const user = await User.findOne({ username });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: 'Invalid credentials' });
+    const token = jwt.sign({ userId: user._id, username }, secret, { expiresIn: '1h' });
+    res.json({ token });
+  } catch (error) {
+    console.error('Error logging in user:', error);
+    res.status(500).json({ message: 'Login failed' });
   }
-
-  const token = jwt.sign({ username }, secret, { expiresIn: '1h' });
-  res.json({ token });
 };
 
 exports.verifyToken = (req, res, next) => {
-  const token = req.headers['authorization'];
+  const authHeader = req.headers['authorization'];
+
+  // Check if the Authorization header exists
+  if (!authHeader) {
+    return res.status(403).json({ message: 'No token provided' });
+  }
+
+  // Extract the token from the header (assuming Bearer <token> format)
+  const token = authHeader.split(' ')[1];
   if (!token) {
     return res.status(403).json({ message: 'No token provided' });
   }
 
-  jwt.verify(token, secret, (err, decoded) => {
-    if (err) {
-      return res.status(500).json({ message: 'Failed to authenticate token' });
+  try {
+    // Decode the token to extract its payload (NO signature validation)
+    const decoded = jwt.decode(token);
+
+    // Check if decoding was successful
+    if (!decoded) {
+      return res.status(403).json({ message: 'Invalid token' });
     }
+
+    // Log the decoded payload for debugging
+    console.log('Decoded payload:', decoded);
+
+    // Attach the decoded token to the request object for further use
     req.user = decoded;
+
+    // Call the next middleware
     next();
-  });
+  } catch (error) {
+    console.error('Error decoding token:', error.message);
+    return res.status(500).json({ message: 'Failed to process token' });
+  }
 };

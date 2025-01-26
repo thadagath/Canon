@@ -1,19 +1,22 @@
 const express = require('express');
+const axios = require('axios');
 const cors = require('cors');
 const WebSocket = require('ws');
+const si = require('systeminformation');
 const http = require('http');
 const connectDB = require('./config/db');
 const rigRoutes = require('./routes/rigRoutes');
 const authRoutes = require('./routes/authRoutes');
 const morgan = require('morgan');
 const winston = require('winston');
+require('dotenv').config(); // Add this line to load environment variables
 
 // Initialize Express
 const app = express();
 console.log('Starting server initialization...');
 
 // Connect to MongoDB
-//connectDB();
+connectDB();
 
 // Configure logging
 app.use(morgan('combined')); // Log HTTP requests
@@ -38,62 +41,50 @@ app.use('/api/auth', authRoutes);
 const server = http.createServer(app);
 
 // Create WebSocket server
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ port: 8080 }); // WebSocket server on port 8080
 
-// WebSocket connection handling
 wss.on('connection', (ws) => {
-  console.log('New client connected');
+  console.log('Client connected');
 
-  // Send initial message
-  ws.send(JSON.stringify({
-    type: 'connection',
-    message: 'Connected to AIHash mining server'
-  }));
-
-  // Handle incoming messages
-  ws.on('message', async (message) => {
-    try {
-      const data = JSON.parse(message);
-      
-      // Handle different message types
-      switch (data.type) {
-        case 'hardware_update':
-          // Broadcast hardware updates to all connected clients
-          wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({
-                type: 'hardware_update',
-                data: data.data
-              }));
-            }
-          });
-          break;
-
-        case 'status_update':
-          // Broadcast status updates to all connected clients
-          wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({
-                type: 'status_update',
-                data: data.data
-              }));
-            }
-          });
-          break;
-
-        default:
-          console.log('Unknown message type:', data.type);
-      }
-    } catch (error) {
-      console.error('Error processing message:', error);
+  const marketdata_interval = setInterval(async () => {
+    try{
+      const response = await axios.get(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'
+      );
+      ws.send(JSON.stringify(response.data));
+    }catch(err){
+      console.error('Error fetching market info:', err);
+      ws.send('error');
     }
-  });
+    
+  }, 5000);
 
-  // Handle client disconnection
+  const miningdata_interval = setInterval(async () => {
+    try{
+      const response = await axios.get(
+        'https://whattomine.com/coins.json'
+      );
+      console.log('sucess fetching',response);
+      ws.send(JSON.stringify(response.data));
+      console.log('sucess fetching',JSON.stringify(response.data));
+    }catch(err){
+      console.error('Error fetching mining info:', err);
+      ws.send('error');
+    }
+  
+  }, 5000);
+
   ws.on('close', () => {
     console.log('Client disconnected');
+    clearInterval(marketdata_interval);
+    clearInterval(miningdata_interval);
   });
 });
+
+console.log('WebSocket server running on ws://localhost:8080');
+
+// Start the proxy WebSocket server
+require('./proxyWebSocketServer');
 
 // Error handling
 app.use((err, req, res, next) => {
